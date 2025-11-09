@@ -1,0 +1,51 @@
+name: Rust
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - master
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install prerequisites
+      run: |
+        sudo apt-get install g++-mingw-w64-i686-posix mingw-w64-i686-dev
+        sudo dpkg --add-architecture i386
+        sudo apt-get update
+        sudo apt-get install nasm:i386
+
+    - uses: actions/checkout@v4
+    - uses: moonrepo/setup-rust@v1
+      with:
+        targets: 'i686-pc-windows-gnu'
+
+    - name: Build
+      run: |
+        cargo build --release --verbose
+
+    - name: Prepare release artifacts
+      run: |
+        ln -s target/i686-pc-windows-gnu/release/mss32.dll .
+        sha1sum mss32.dll > hashes.txt
+        cat hashes.txt
+
+    - name: Publish release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: ncipollo/release-action@v1
+      with:
+        allowUpdates: true
+        tag: ${{ github.ref_name }}
+        artifacts: "mss32.dll,hashes.txt"
+        token: ${{ secrets.GITHUB_TOKEN }}
