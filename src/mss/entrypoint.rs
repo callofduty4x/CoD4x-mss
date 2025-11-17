@@ -1,6 +1,6 @@
-use super::filesystem::get_cod4x_launcher_path;
+use super::filesystem::{get_cod4x_launcher_path, set_module_path_as_cwd};
 use super::hook::{get_module_nt_header, patch_module};
-use super::module_detect::is_iw3mp;
+use super::module::is_iw3mp;
 use core::ffi::{c_char, c_void};
 use core::ptr::addr_of_mut;
 use winapi::shared::minwindef::{BOOL, DWORD, FALSE, HINSTANCE, HMODULE, TRUE};
@@ -96,6 +96,8 @@ unsafe fn get_proc<T>(module: HMODULE, name: &core::ffi::CStr) -> Option<T> {
 }
 
 unsafe fn start_launcher() {
+    set_module_path_as_cwd();
+
     let launcher_path = match get_cod4x_launcher_path() {
         Some(path) => path,
         None => {

@@ -1,27 +1,18 @@
+use super::filesystem::module_fullpath;
 use winapi::shared::ntdef::WCHAR;
-use winapi::um::libloaderapi::GetModuleFileNameW;
 
 pub unsafe fn is_iw3mp() -> bool {
-    let mut buffer: [WCHAR; 1024] = [0; 1024];
-    let len = unsafe {
-        GetModuleFileNameW(
-            core::ptr::null_mut(),
-            buffer.as_mut_ptr(),
-            buffer.len() as u32,
-        )
-    } as usize;
-
-    if len >= buffer.len() {
+    let Some(fullpath) = module_fullpath() else {
         return false;
-    }
+    };
 
-    let buffer = &buffer[0..len];
-    let last_sep = buffer
+    let Some(last_sep) = fullpath
+        .as_slice()
         .iter()
-        .rposition(|&ch| ch == b'/' as WCHAR || ch == b'\\' as WCHAR);
-    if last_sep.is_none() {
+        .rposition(|&ch| ch == b'/' as WCHAR || ch == b'\\' as WCHAR)
+    else {
         return false;
-    }
+    };
 
     let cmp1 = *((0x6748ce) as *const u32);
     let cmp2 = *((0x6748d2) as *const u32);
@@ -66,7 +57,7 @@ pub unsafe fn is_iw3mp() -> bool {
         return true; //offical 1.7
     }
 
-    let filename = &buffer[last_sep.unwrap() + 1..];
+    let filename = &fullpath.as_slice()[last_sep + 1..];
     filename
         .iter()
         .take_while(|&&c| c != 0)

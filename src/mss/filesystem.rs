@@ -1,6 +1,8 @@
+use super::fixed_buffer::FixedBuffer;
 use core::ffi::c_ulong;
 use winapi::shared::ntdef::WCHAR;
-use winapi::um::processenv::GetEnvironmentVariableW;
+use winapi::um::libloaderapi::GetModuleFileNameW;
+use winapi::um::processenv::{GetEnvironmentVariableW, SetCurrentDirectoryW};
 
 #[macro_export]
 macro_rules! wide {
@@ -81,4 +83,38 @@ pub fn get_cod4x_launcher_path() -> Option<[WCHAR; 1024]> {
         return Some(appdata);
     }
     None
+}
+
+pub unsafe fn module_fullpath() -> Option<FixedBuffer<WCHAR, 1024>> {
+    let mut buffer = FixedBuffer::<WCHAR, 1024>::new();
+    let len = GetModuleFileNameW(
+        core::ptr::null_mut(),
+        buffer.as_mut_ptr(),
+        buffer.capacity() as u32,
+    ) as usize;
+
+    if len >= buffer.capacity() {
+        return None;
+    }
+    buffer.set_len(len);
+    Some(buffer)
+}
+
+pub unsafe fn module_path(fullpath: &mut FixedBuffer<WCHAR, 1024>) -> Option<&[WCHAR]> {
+    let last_sep = fullpath
+        .as_slice()
+        .iter()
+        .rposition(|&ch| ch == b'/' as WCHAR || ch == b'\\' as WCHAR)?;
+
+    // We'll need a pointer to a null-terminated buffer
+    fullpath.as_mut_slice()[last_sep] = 0;
+    Some(&fullpath.as_slice()[0..last_sep])
+}
+
+pub unsafe fn set_module_path_as_cwd() {
+    if let Some(mut fullpath) = module_fullpath() {
+        if let Some(path) = module_path(&mut fullpath) {
+            SetCurrentDirectoryW(path.as_ptr());
+        }
+    }
 }
